@@ -1,8 +1,11 @@
 breed [people person]
 
+extensions [table]
+
 people-own [
   resources
   age
+  pdying
 ]
 
 patches-own [
@@ -10,41 +13,62 @@ patches-own [
 ]
 
 globals [
-  
+  modal-death
+  gompertz-k
+  deaths
+  age-at-death
+  max-age
 ]
 
 to setup
   clear-all
+  setup-constants
   setup-people
-  update-people
   reset-ticks
 end
 
 to go
-  update-people
+  ifelse count people > 0 
+    [ update-people ]
+    [ stop ]
   tick
+end
+
+to setup-constants
+  set modal-death 0.207712 * x25 + (1 - 0.207712) * x75
+  set gompertz-k 1.5725336 / (x75 - x25)
+  set age-at-death []
+  set max-age start-age
 end
 
 to setup-people
   create-people population [
-    set age 20
-    set shape "person"
+    set age start-age
     set resources random-normal 50 20
+    hide-turtle
   ]
 end
 
 to update-people
   ask people [
+    set pdying gompertz-k * e ^ ((age - modal-death) * gompertz-k)
+    let pdeath random-float 1
+    if pdeath <= pdying [ 
+      set age-at-death sentence age-at-death [age] of self
+      die
+    ]
     set age age + 1
   ]
+  ifelse count people > 0
+    [ set max-age mean [age] of people ]
+    [ set max-age max age-at-death ]
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 529
 10
-929
-431
+931
+433
 10
 10
 18.7
@@ -109,8 +133,8 @@ SLIDER
 population
 population
 0
-100
-37
+100000
+1911
 1
 1
 NIL
@@ -121,29 +145,96 @@ MONITOR
 130
 102
 183
-mean age
-mean [age] of people
+max age
+max-age
 2
 1
 13
 
 PLOT
-22
-212
-222
-362
-plot 1
-NIL
-NIL
+17
+271
+446
+477
+percent surviving by age
+age
+percent
 0.0
 10.0
 0.0
-10.0
+100.0
 true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot count turtles"
+"alive" 1.0 0 -13345367 true "" "plot count people / population * 100"
+
+MONITOR
+120
+130
+177
+183
+deaths
+length age-at-death
+0
+1
+13
+
+SLIDER
+238
+25
+410
+58
+start-age
+start-age
+0
+100
+30
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+223
+118
+395
+151
+x25
+x25
+0
+100
+69
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+223
+161
+395
+194
+x75
+x75
+0
+100
+88
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+22
+198
+132
+251
+life expectancy
+median age-at-death
+2
+1
+13
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -152,7 +243,7 @@ PENS
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+method for estimating Gompertz curve constants for a given life table: http://www.businessandeconomics.mq.edu.au/our_departments/applied_finance_and_actuarial_studies/acst_docs/research_papers/1998/rp98_001.pdf
 
 ## HOW TO USE IT
 
