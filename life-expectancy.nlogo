@@ -19,19 +19,23 @@ globals [
   age-at-death
   max-age
   causes
+  survival-by-age
+  alive-by-age
+  deaths-by-age
 ]
 
 to setup
   clear-all
-  setup-constants
   setup-causes
   setup-people
+  setup-constants
   reset-ticks
 end
 
 to go
   ifelse count people > 0 
-    [ update-people ]
+    [ update-people
+      update-survival ]
     [ stop ]
   tick
 end
@@ -42,6 +46,12 @@ to setup-constants
   set age-at-death []
   set deaths []
   set max-age start-age
+  set alive-by-age table:make
+  table:put alive-by-age start-age count people
+  set deaths-by-age table:make
+  table:put deaths-by-age start-age 0
+  set survival-by-age table:make
+  update-survival
 end
 
 to setup-causes
@@ -65,6 +75,9 @@ to update-people
     if pdeath <= p-age-related [ 
       set age-at-death sentence age-at-death [age] of self
       set deaths fput (list who ([age] of self) "age-related") deaths
+      ifelse table:has-key? deaths-by-age [age] of self
+        [ table:put deaths-by-age [age] of self (table:get deaths-by-age [age] of self) + 1 ]
+        [ table:put deaths-by-age [age] of self 1 ]
       die
     ]
     foreach table:keys causes [
@@ -73,14 +86,42 @@ to update-people
       if pdeath <= pdying [ 
         set age-at-death sentence age-at-death [age] of self
         set deaths fput (list who ([age] of self) ?) deaths
+        ifelse table:has-key? deaths-by-age [age] of self
+          [ table:put deaths-by-age [age] of self (table:get deaths-by-age [age] of self) + 1 ]
+          [ table:put deaths-by-age [age] of self 1 ]
         die
       ]
     ]
     set age age + 1
+    ifelse table:has-key? alive-by-age [age] of self
+      [ table:put alive-by-age [age] of self (table:get alive-by-age [age] of self) + 1 ]
+      [ table:put alive-by-age [age] of self 1 ]
   ]
-  ifelse count people > 0
+   
+  ifelse length age-at-death = 0
     [ set max-age mean [age] of people ]
     [ set max-age max age-at-death ]
+  if count people < population [
+    create-people population - count people [
+      set age start-age
+      set resources random-normal 50 20
+      hide-turtle
+    ]
+  ]
+end
+
+to update-survival
+  let ages n-values (max-age - start-age + 1) [start-age + ?]
+  let alive-ever table:get alive-by-age start-age
+  foreach ages [
+    let cum-ages n-values (? - start-age + 1) [start-age + ?]
+    let cum-dead 0
+    foreach cum-ages [
+      if table:has-key? deaths-by-age ?
+        [ set cum-dead cum-dead + (table:get deaths-by-age ?) ]
+    ]
+    table:put survival-by-age ? (alive-ever - cum-dead) / alive-ever * 100
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -153,7 +194,7 @@ population
 population
 0
 100000
-1911
+100
 1
 1
 NIL
@@ -186,7 +227,7 @@ true
 false
 "" ""
 PENS
-"alive" 1.0 0 -13345367 true "" "plot count people / population * 100"
+"alive" 1.0 0 -13345367 true "" "let ages n-values (max-age - start-age + 1) [start-age + ?]\nforeach ages [ plotxy ? table:get survival-by-age ? ]"
 
 MONITOR
 120
@@ -252,6 +293,17 @@ MONITOR
 life expectancy
 median age-at-death
 2
+1
+13
+
+MONITOR
+229
+62
+324
+115
+living people
+count people
+0
 1
 13
 
