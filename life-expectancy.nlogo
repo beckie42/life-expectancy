@@ -5,7 +5,7 @@ extensions [table]
 people-own [
   resources
   age
-  pdying
+  p-age-related
 ]
 
 patches-own [
@@ -18,11 +18,13 @@ globals [
   deaths
   age-at-death
   max-age
+  causes
 ]
 
 to setup
   clear-all
   setup-constants
+  setup-causes
   setup-people
   reset-ticks
 end
@@ -38,7 +40,14 @@ to setup-constants
   set modal-death 0.207712 * x25 + (1 - 0.207712) * x75
   set gompertz-k 1.5725336 / (x75 - x25)
   set age-at-death []
+  set deaths []
   set max-age start-age
+end
+
+to setup-causes
+  set causes table:make
+  table:put causes "cancer" .001738
+  table:put causes "hiv" 0.00004912685   
 end
 
 to setup-people
@@ -51,11 +60,21 @@ end
 
 to update-people
   ask people [
-    set pdying gompertz-k * e ^ ((age - modal-death) * gompertz-k)
+    set p-age-related gompertz-k * e ^ ((age - modal-death) * gompertz-k)
     let pdeath random-float 1
-    if pdeath <= pdying [ 
+    if pdeath <= p-age-related [ 
       set age-at-death sentence age-at-death [age] of self
+      set deaths fput (list who ([age] of self) "age-related") deaths
       die
+    ]
+    foreach table:keys causes [
+      let pdying table:get causes ?
+      set pdeath random-float 1
+      if pdeath <= pdying [ 
+        set age-at-death sentence age-at-death [age] of self
+        set deaths fput (list who ([age] of self) ?) deaths
+        die
+      ]
     ]
     set age age + 1
   ]
