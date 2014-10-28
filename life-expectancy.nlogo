@@ -105,6 +105,7 @@ to update-people
     create-people population - count people [
       set age start-age
       set resources random-normal 50 20
+      table:put alive-by-age [age] of self (table:get alive-by-age [age] of self) + 1
       hide-turtle
     ]
   ]
@@ -114,13 +115,11 @@ to update-survival
   let ages n-values (max-age - start-age + 1) [start-age + ?]
   let alive-ever table:get alive-by-age start-age
   foreach ages [
-    let cum-ages n-values (? - start-age + 1) [start-age + ?]
-    let cum-dead 0
-    foreach cum-ages [
-      if table:has-key? deaths-by-age ?
-        [ set cum-dead cum-dead + (table:get deaths-by-age ?) ]
-    ]
-    table:put survival-by-age ? (alive-ever - cum-dead) / alive-ever * 100
+    let alive (table:get alive-by-age ?)
+    table:put survival-by-age ? alive / alive-ever * 100
+  ]
+  if table:has-key? deaths-by-age 31 [
+    type table:get alive-by-age 31 type " " type table:get deaths-by-age 31 type " " show table:get survival-by-age 31
   ]
 end
 @#$#@#$#@
@@ -219,15 +218,15 @@ PLOT
 percent surviving by age
 age
 percent
-0.0
-10.0
+30.0
+40.0
 0.0
 100.0
 true
 false
 "" ""
 PENS
-"alive" 1.0 0 -13345367 true "" "let ages n-values (max-age - start-age + 1) [start-age + ?]\nforeach ages [ plotxy ? table:get survival-by-age ? ]"
+"alive" 1.0 0 -13345367 true "" "let ages n-values (max-age - start-age + 1) [start-age + ?]\nforeach ages [ plotxy ? (table:get survival-by-age ?) ]"
 
 MONITOR
 120
