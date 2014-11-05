@@ -56,8 +56,9 @@ end
 
 to setup-causes
   set causes table:make
-  table:put causes "cancer" .001738
-  table:put causes "hiv" 0.00004912685   
+  table:put causes "cancer" [.00443 .00179]
+  table:put causes "influenza" [0.0006327 0.0000975]
+  table:put causes "car-accident" [.000093 .000012]
 end
 
 to setup-people
@@ -117,9 +118,6 @@ to update-survival
   foreach ages [
     let alive (table:get alive-by-age ?)
     table:put survival-by-age ? alive / alive-ever * 100
-  ]
-  if table:has-key? deaths-by-age 31 [
-    type table:get alive-by-age 31 type " " type table:get deaths-by-age 31 type " " show table:get survival-by-age 31
   ]
 end
 @#$#@#$#@
@@ -314,6 +312,9 @@ count people
 ## HOW IT WORKS
 
 method for estimating Gompertz curve constants for a given life table: http://www.businessandeconomics.mq.edu.au/our_departments/applied_finance_and_actuarial_studies/acst_docs/research_papers/1998/rp98_001.pdf
+
+risk of death from various causes
+http://www.psandman.com/articles/cma-appb.htm#B-1
 
 ## HOW TO USE IT
 
