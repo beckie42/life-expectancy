@@ -56,9 +56,8 @@ end
 
 to setup-causes
   set causes table:make
-  table:put causes "cancer" [.00443 .00179]
-  table:put causes "influenza" [0.0006327 0.0000975]
-  table:put causes "car-accident" [.000093 .000012]
+  table:put causes "A" [.00443 .00179]
+  table:put causes "B" [0.0006327 0.0000975]
 end
 
 to setup-people
@@ -307,7 +306,7 @@ count people
 @#$#@#$#@
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+simulating life expectancy as risk of death from various causes changes
 
 ## HOW IT WORKS
 
@@ -650,7 +649,7 @@ Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 
 @#$#@#$#@
-NetLogo 5.0.4
+NetLogo 5.1.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
