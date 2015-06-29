@@ -41,26 +41,38 @@ to go
 end
 
 to setup-constants
+  ; calculate modal death and Gompertz k constant
   set modal-death 0.207712 * x25 + (1 - 0.207712) * x75
   set gompertz-k 1.5725336 / (x75 - x25)
+  ; create lists to store age at which each death occurs and details about each death (person ID, age, cause)
   set age-at-death []
   set deaths []
+  ; initial maximum age is the start age
   set max-age start-age
+  ; create a table to store the number of people alive at each age
   set alive-by-age table:make
   table:put alive-by-age start-age count people
+  ; create a table to store the number of deaths occuring at each age
   set deaths-by-age table:make
   table:put deaths-by-age start-age 0
+  ; create a table to store the percentage of the population surviving at each age
   set survival-by-age table:make
+  ; calculate the survival percentage by age
   update-survival
 end
 
 to setup-causes
+  ; create a table to store each cause of death and its annual probability
   set causes table:make
-  table:put causes "A" [.00443 .00179]
-  table:put causes "B" [0.0006327 0.0000975]
+;  table:put causes "A" [.00443 .00179]
+;  table:put causes "B" [0.0006327 0.0000975]
+  table:put causes "cancer" .001738
+  table:put causes "hiv" 0.00004912685
 end
 
 to setup-people
+  ; create a population of size population of uniform age, start-age
+  ; each individual is randomly assigned resources that are normally distributed with a mean of 50 and SD of 20
   create-people population [
     set age start-age
     set resources random-normal 50 20
@@ -70,37 +82,56 @@ end
 
 to update-people
   ask people [
+    ; calculate probability of age-related death
     set p-age-related gompertz-k * e ^ ((age - modal-death) * gompertz-k)
+    ; generate a random number to determine whether person dies of this cause
     let pdeath random-float 1
-    if pdeath <= p-age-related [ 
+    if pdeath <= p-age-related [
+      ; update tables/lists storing details of each death
+      ; add age to list of age-at-death 
       set age-at-death sentence age-at-death [age] of self
+      ; add ID, age, cause of death to list of deaths
       set deaths fput (list who ([age] of self) "age-related") deaths
+      ; increment count of deaths occurring at this age by one
       ifelse table:has-key? deaths-by-age [age] of self
         [ table:put deaths-by-age [age] of self (table:get deaths-by-age [age] of self) + 1 ]
         [ table:put deaths-by-age [age] of self 1 ]
+      ; remove individual from population
       die
     ]
+    ;check whether individual dies from a non-age-related cause
     foreach table:keys causes [
+      ; retrieve probability of dying from each cause in turn
       let pdying table:get causes ?
+      ; generate a random number to determine whether person dies of this cause
       set pdeath random-float 1
       if pdeath <= pdying [ 
+        ; update tables/lists storing details of each death
+        ; add age to list of age-at-death 
         set age-at-death sentence age-at-death [age] of self
+        ; add ID, age, cause of death to list of deaths
         set deaths fput (list who ([age] of self) ?) deaths
+        ; increment count of deaths occurring at this age by one
         ifelse table:has-key? deaths-by-age [age] of self
           [ table:put deaths-by-age [age] of self (table:get deaths-by-age [age] of self) + 1 ]
           [ table:put deaths-by-age [age] of self 1 ]
+        ; remove individual from population
         die
       ]
     ]
+    ; increment age of survivors by one
     set age age + 1
+    ; increment count of people alive at current age by one
     ifelse table:has-key? alive-by-age [age] of self
       [ table:put alive-by-age [age] of self (table:get alive-by-age [age] of self) + 1 ]
       [ table:put alive-by-age [age] of self 1 ]
   ]
-   
+  
+  ; update maximum age reached 
   ifelse length age-at-death = 0
     [ set max-age mean [age] of people ]
     [ set max-age max age-at-death ]
+  ; create new people to replace those deceased
   if count people < population [
     create-people population - count people [
       set age start-age
@@ -112,11 +143,19 @@ to update-people
 end
 
 to update-survival
+  ; update the table storing survival percentage at each age
+  ; make a list of all possible ages
   let ages n-values (max-age - start-age + 1) [start-age + ?]
+  ; alive-ever is the number of individuals ever created (they are initialised at start-age, so count number with start-age)
   let alive-ever table:get alive-by-age start-age
+  ; for each age, the number of people alive at that age is converted to a percentage of people who were ever alive
   foreach ages [
     let alive (table:get alive-by-age ?)
     table:put survival-by-age ? alive / alive-ever * 100
+  ]
+  ; test: show survival for age 31
+  if table:has-key? deaths-by-age 31 [
+    type table:get alive-by-age 31 type " " type table:get deaths-by-age 31 type " " show table:get survival-by-age 31
   ]
 end
 @#$#@#$#@
@@ -223,7 +262,7 @@ true
 false
 "" ""
 PENS
-"alive" 1.0 0 -13345367 true "" "let ages n-values (max-age - start-age + 1) [start-age + ?]\nforeach ages [ plotxy ? (table:get survival-by-age ?) ]"
+"alive" 1.0 2 -13345367 true "" "let ages n-values (max-age - start-age + 1) [start-age + ?]\nforeach ages [ plotxy ? (table:get survival-by-age ?) ]"
 
 MONITOR
 120
@@ -252,10 +291,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-223
-118
-395
-151
+239
+70
+411
+103
 x25
 x25
 0
@@ -267,10 +306,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-223
-161
-395
-194
+239
+113
+411
+146
 x75
 x75
 0
@@ -293,10 +332,10 @@ median age-at-death
 13
 
 MONITOR
-229
-62
-324
-115
+147
+197
+242
+250
 living people
 count people
 0
@@ -306,18 +345,49 @@ count people
 @#$#@#$#@
 ## WHAT IS IT?
 
-simulating life expectancy as risk of death from various causes changes
+This model creates a life expectancy curve for a population by simulating deaths due to different causes over time and tracking the population size for each year.
+
+The risk of dying due to age-related causes is approximated using a Gompertz curve as calculated by Pollard<sup>1</sup>
 
 ## HOW IT WORKS
+A table of non-age-related causes of deaths is created to store the annual risk of death from each cause.
 
-method for estimating Gompertz curve constants for a given life table: http://www.businessandeconomics.mq.edu.au/our_departments/applied_finance_and_actuarial_studies/acst_docs/research_papers/1998/rp98_001.pdf
+A population of people is created with size and age determined by the **population** and **start-age** sliders. Resources are assigned randomly using a normal distribution with mean 50 and standard deviation 20.
 
-risk of death from various causes
-http://www.psandman.com/articles/cma-appb.htm#B-1
+Based on the provided values for x<sub>0.25</sub> and x<sub>0.75</sub>, the modal age at death (modal-death) is calculated using the formula 0.207712 * x25 + (1 - 0.207712) * x75, and the Gompertz k constant (gompertz-k) is calculated using the formula 1.5725336 / (x75 - x25) <sup>1</sup>.
+
+Time ticks in increments of one year. Each year, the simulation goes through each individual in the population to determine whether they die of age-related or other causes.
+
+First, the probability of the individual dying of age-related causes is calculated using the formula gompertz-k * e ^ ((age - modal-death) * gompertz-k) <sup>1</sup>. A random number is generated, and if it is lower than the probability of age-related death, the individual dies.
+
+Next, the probability of the individual dying of each non-age-related cause is retrieved from the table of non-age-related causes of deaths. A random number is generated, and if it is lower than the probability of death for that cause, the individual dies.
+
+Each time an individual dies, their ID, age and cause of death are recorded in a list (deaths). Their age is added to the list of ages at which deaths occurred (age-at-death), and the count of deaths occurring at that age is incremented by one.
+
+For each individual who does not die in this year, age is incremented by one.
+
+The maximum age reached is updated to the maximum age at death (or current mean age, if no deaths have occurred yet).
+
+To keep the population constant, new individuals are created with the initial characteristics described previously to replace those who have died.
+
+Survival percentages are updated by calculating the number of people at each age as a percentage of people who have ever been alive. **NOTE: This is being calculated incorrectly. See "Extending the model" below**
+
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+The **population** slider sets the size of the starting population.
+
+The **start-age** slider sets the starting age of each person in the population (note: this is set to > 18 to focus on adult mortality)
+
+The **x25** slider sets the first quartile age of survivors from age 1.
+The **x75** slider sets the third quartile age of survivors from age 1.
+These values are used to calculate a probability of dying due to age-related causes, based on the equations in Pollard<sup>1</sup>.
+
+The **max age** monitor shows the maximum age reached by any member of the population.
+The **deaths** monitor shows the cumulative number of deaths at the current time.
+The **living people** monitor shows the current number of living members of the population.
+The **life expectancy** monitor shows the current life expectancy for the population, defined as the median age at death.
+The **percent surviving by age** graph shows the percentage of the population still living at each age.
 
 ## THINGS TO NOTICE
 
@@ -329,7 +399,13 @@ http://www.psandman.com/articles/cma-appb.htm#B-1
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+Give different populations different probabilities of dying from different causes, to see the effects of changes in disease susceptibility on life expectancy.
+
+Fix the graph. I think the reason there's so much variation in the y-axis is because the survival percentages are being calculated incorrectly. Rather than a percentage of people ever alive/created, it should be people who ever had the opportunity to reach that age. It would also be nice to have a curve rather than points.
+
+Should the population renew itself constantly, or should we run multiple simulations with one generation each?
+
+Research accurate values for x<sub>0.25</sub> and x<sub>0.75</sub> for relevant populations and annual probabilities of death from different causes.
 
 ## NETLOGO FEATURES
 
@@ -341,7 +417,7 @@ http://www.psandman.com/articles/cma-appb.htm#B-1
 
 ## CREDITS AND REFERENCES
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+1. Pollard, John; An Old Tool - Modern Applications (1998) Actuarial Studies and Demography Research Paper Series. Research Paper No. 001/98 http://www.businessandeconomics.mq.edu.au/our_departments/applied_finance_and_actuarial_studies/acst_docs/research_papers/1998/rp98_001.pdf
 @#$#@#$#@
 default
 true
